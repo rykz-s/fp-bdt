@@ -1,0 +1,52 @@
+####### KEDUA SERVER ######
+sudo apt-get update -y
+sudo apt-get install mysql-server -y
+sudo systemctl start mysql
+sudo systemctl enable mysql
+sudo mysql_secure_installation
+sudo mysql
+SELECT user,authentication_string,plugin,host FROM mysql.user;
+ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'Password123!';
+FLUSH PRIVILEGES;
+
+####### MASTER #######
+sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf
+Tambahkan konfigurasi berikut pada bagian [mysqld]
+	bind-address	= 0.0.0.0
+	server-id               	= 1
+	log_bin                 	= /var/log/mysql/mysql-bin.log
+sudo systemctl restart mysql
+systemctl status mysql
+mysql -u root -p
+CREATE USER 'replica'@'10.0.0.204' IDENTIFIED BY 'Replica123!';
+GRANT REPLICATION SLAVE ON *.* TO 'replica'@'10.0.0.204';
+SHOW MASTER STATUS\G
+
+######## SLAVE #######
+sudo rm -f /var/lib/mysql/auto.cnf
+sudo systemctl restart mysql
+sudo nano /etc/mysql/mysql.conf.d/mysqld.cnf
+Edit konfigurasi pada bagian [mysqld]
+	bind-address	= 0.0.0.0
+	server-id               	= 2
+	log_bin                 	= /var/log/mysql/mysql-bin.log
+sudo systemctl restart mysql
+systemctl status mysql
+mysql -u root -p
+STOP SLAVE;
+CHANGE MASTER TO MASTER_HOST='10.0.0.100', MASTER_USER='replica', MASTER_PASSWORD='Replica123!', MASTER_LOG_FILE='mysql-bin.000002', MASTER_LOG_POS=619;
+START SLAVE;
+SHOW SLAVE STATUS \G
+
+####### MASTER #######
+CREATE DATABASE laravel;
+USE laravel;
+
+####### Visual Studio Code #######
+pada .env lakukan konfigurasi seperti yang tertera pada laporan
+lakukan command php artisan migrate
+
+####### Master #######
+select * from taksonomis;
+maka data sudah terintegrasi.
+

@@ -1,0 +1,82 @@
+###### Keduanya ######
+sudo apt update
+sudo apt install redis-server -y
+sudo nano /etc/redis/redis.conf
+        - comment bagian 'bind 127.0.0.1 ::1'
+        - set 'protected-mode' to 'no'
+        - tambahkan konfigurasi 'slaveof' (di bagian slave)
+sudo nano /etc/redis/sentinel.conf
+	sentinel myid 9862e14b6d9fb11c035c4a28d48573455a7876a2
+	sentinel monitor redis-primary 10.0.0.73 6379 2
+	sentinel down-after-milliseconds redis-primary 2000
+	sentinel failover-timeout redis-primary 5000
+	protected-mode no
+sudo systemctl restart redis
+redis-cli SET hello "world"
+redis-cli GET hello
+sudo nano /etc/redis/sentinel.conf
+	# Run in production with systemd
+	logfile "/var/log/redis/sentinel.log"
+	pidfile "/var/run/redis/sentinel.pid"
+	daemonize yes
+sudo nano /etc/systemd/system/sentinel.service
+	[Unit]
+	Description=Sentinel for Redis
+	After=network.target
+
+	[Service]
+	Type=forking
+	User=redis
+	Group=redis
+	PIDFile=/var/run/redis/sentinel.pid
+	ExecStart=/usr/bin/redis-server /etc/redis/sentinel.conf --sentinel
+	ExecStop=/bin/kill -s TERM $MAINPID
+	Restart=always
+	
+	[Install]
+	WantedBy=multi-user.target
+
+sudo chown redis:redis /etc/redis/sentinel.conf
+sudo chown redis:redis /var/log/redis/sentinel.log
+sudo chmod 640 /etc/redis/sentinel.conf
+sudo chmod 660 /var/log/redis/sentinel.log
+sudo systemctl daemon-reload
+sudo systemctl enable sentinel.service
+sudo systemctl start sentinel
+
+###### config/database.php ######
+'redis' => [
+
+        'client' => 'predis',
+        'default' => [
+            'tcp://52.87.232.55:26739?timeout=0.100',
+            'tcp://52.72.12.187:26739?timeout=0.100',
+            'options' => [
+                'replication' => 'sentinel',
+                'service' => 'redis-primary',
+                'parameters' => [
+                    'password' => null,
+                    'database' => 0,
+                ],
+                'sentinel_timeout' => 5.0,
+            ],
+            // 'url' => env('REDIS_URL'),
+            // 'host' => env('REDIS_HOST', '127.0.0.1'),
+            // 'password' => env('REDIS_PASSWORD', null),
+            // 'port' => env('REDIS_PORT', '6379'),
+            // 'database' => env('REDIS_DB', '0'),
+        ],
+
+
+        'cache' => [
+            'url' => env('REDIS_URL'),
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'password' => env('REDIS_PASSWORD', null),
+            'port' => env('REDIS_PORT', '6379'),
+            'database' => env('REDIS_CACHE_DB', '1'),
+        ],
+
+    ],
+
+###### Terminal ######
+composer require predis/predis
